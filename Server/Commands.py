@@ -8,7 +8,6 @@ GLOBAL_COMMAND_PARAMS = {
 
 def executeServerLSCmd(cmd,acc):
     acc.send(ServerFileIo.getCurrentFolderListing().encode())
-    pass
 
 def executeServerCDCmd(cmd,acc):
     try:
