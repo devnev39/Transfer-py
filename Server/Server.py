@@ -3,6 +3,10 @@ import threading
 import ServerFileIo
 import os
 
+def setServerSpeedDelay(speed:int,delay:float):
+    ServerFileIo.MAX_BYTES_PER_PACK = speed
+    ServerFileIo.TRANSFER_DELAY_PER_PACK = delay
+
 def setServerDirectoryRoot(root:str):
     if(os.path.isdir(root)):
         ServerFileIo.GLOBAL_SERVER_ROOT = root

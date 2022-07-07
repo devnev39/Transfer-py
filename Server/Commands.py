@@ -26,24 +26,26 @@ def executeServerGetCmd(cmd,acc):
             raise Exception(ServerFileIo.bcolors.WARNING+'file/folder not found !'+ServerFileIo.bcolors.ENDC)
         acc.send(str(1).encode())
         if(ServerFileIo.isDirectory(req)):
-            acc.send(ServerFileIo.getRequestFolderContent(req).encode())
+            out = ServerFileIo.getRequestFolderContent(req,0,0)
+            acc.send(f'Files : {out[0]}  Size : {out[1]}'.encode())
             conf = int(acc.recv(50))
             if(conf):
-                pass
+                ServerFileIo.processFileFolderRequest(req,acc)
             else:
                 raise Exception(ServerFileIo.bcolors.FAIL+"Transfer cancelled !"+ServerFileIo.bcolors.ENDC)
-            pass
         if(ServerFileIo.isFile(req)):
             acc.send(ServerFileIo.getRequestFileProperties(req).encode())
             conf = int(acc.recv(512))
             if(conf):
-                ServerFileIo.sendFile(req,acc)
+                ServerFileIo.processFileFolderRequest(req,acc)
             else:
                 raise Exception(ServerFileIo.bcolors.FAIL+"Transfer cancelled !"+ServerFileIo.bcolors.ENDC)
     except Exception as exp:
         print(exp)
         time.sleep(0.1)
         acc.send(str(exp).encode())
+    finally:
+        ServerFileIo.resetFileFolderNameCache()
 
 GLOBAL_SERVER_COMMAND_BINDER = {
     "ls" : executeServerLSCmd,

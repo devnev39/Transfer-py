@@ -1,5 +1,14 @@
+import math
 import os
+from socket import socket
+import time
+
 GLOBAL_SERVER_ROOT = "NONE"
+
+MAX_BYTES_PER_PACK = 40960
+TRANSFER_DELAY_PER_PACK = 0.005
+
+LAST_FOLDER_FILES = []
 
 class bcolors:
     HEADER = '\033[95m'
@@ -53,11 +62,13 @@ def getSize(req):
 
 def getRequestFileProperties(req):
     size = getSize(req)
+    LAST_FOLDER_FILES.append(os.path.join(GLOBAL_SERVER_ROOT,req))
     return f'Name : {req}\nSize : {size}'
 
 def getRequestFolderContent(req,f_c,s_c):
     n_f,n_s = 0,0
     if(isFile(req)):
+        LAST_FOLDER_FILES.append(req)
         return f_c+1,s_c+getSize(req)
     if(isDirectory(req)):
         for each in os.listdir(os.path.join(GLOBAL_SERVER_ROOT,req)):
@@ -65,3 +76,41 @@ def getRequestFolderContent(req,f_c,s_c):
             n_f = a
             n_s = b
     return n_f+f_c,n_s+s_c
+
+def resetFileFolderNameCache():
+    LAST_FOLDER_FILES.clear()
+
+def processFileFolderRequest(req,acc):
+    files_no = len(LAST_FOLDER_FILES)
+    acc.send(str(files_no).encode())
+    time.sleep(0.1)
+    for file_ind in range(files_no):
+        s = os.path.getsize(LAST_FOLDER_FILES[file_ind])
+        acc.send(str(s).encode())
+        time.sleep(0.1)
+        acc.send(str(MAX_BYTES_PER_PACK).encode())
+        time.sleep(0.1)
+        sendFile(LAST_FOLDER_FILES[file_ind],s,acc)
+
+def sendFile(name:str,size,acc:socket):
+    packs = math.ceil(size/MAX_BYTES_PER_PACK)
+    short_name = name.split(GLOBAL_SERVER_ROOT+os.path.sep)[-1]
+    acc.send(short_name.encode())
+    time.sleep(0.1)
+    with(open(name,"rb")) as f:
+        if packs==1 : 
+            acc.send(f.read(size))
+            print(f'SENT : {name}')
+            return
+        sent = 0
+        for pack in range(1,packs+1):
+            if(pack==packs):
+                read_size = size - (1024*(pack-1))
+                sent += read_size
+                acc.send(f.read(read_size))
+                print(f'Done : {(sent/size)*100}',end="\r")
+                continue
+            acc.send(f.read(MAX_BYTES_PER_PACK))
+            time.sleep(TRANSFER_DELAY_PER_PACK)
+            sent += MAX_BYTES_PER_PACK
+            print(f'Done : {(sent/size)*100} %',end='\r')
